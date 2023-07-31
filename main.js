@@ -1,3 +1,12 @@
+"use strict";
+
+//======================================================================================================
+// Constants
+//======================================================================================================
+const CANVAS_W = 600;
+const CANVAS_H = 600;
+const PLAYER_VEL = 2;
+
 //======================================================================================================
 // Classes
 //======================================================================================================
@@ -10,26 +19,47 @@ class Game
 {
     constructor()
     {
-        this.entityList = [new Entity()];
+        this.entityList = [new Entity(PLAYER_VEL)];
         this.background = new Background("Blue");
-        window.addEventListener('keydown', (event) => {this.HandleControlInput(event);});
+        window.addEventListener('keydown', (event) => {this.HandleControlInputDown(event);});
+        window.addEventListener('keyup', (event) => {this.HandleControlInputUp(event);});
     }
 
-    HandleControlInput(event)
+    HandleControlInputDown(event)
     {
         switch(event.key)
         {
         case "w":
-            this.entityList[0].SetLocationY(this.entityList[0].GetLocationY()-3);
+            this.entityList[0].velocity.y += -PLAYER_VEL;
             break;
         case "a":
-            this.entityList[0].SetLocationX(this.entityList[0].GetLocationX()-3);
+            this.entityList[0].velocity.x += -PLAYER_VEL;
             break;
         case "s":
-            this.entityList[0].SetLocationY(this.entityList[0].GetLocationY()+3);
+            this.entityList[0].velocity.y += PLAYER_VEL;
             break;
         case "d":
-            this.entityList[0].SetLocationX(this.entityList[0].GetLocationX()+3);
+            this.entityList[0].velocity.x += PLAYER_VEL;
+            break;
+        default:
+        }
+    }
+
+    HandleControlInputUp(event)
+    {
+        switch(event.key)
+        {
+        case "w":
+            this.entityList[0].velocity.y -= -PLAYER_VEL;
+            break;
+        case "a":
+            this.entityList[0].velocity.x -= -PLAYER_VEL;
+            break;
+        case "s":
+            this.entityList[0].velocity.y -= PLAYER_VEL;
+            break;
+        case "d":
+            this.entityList[0].velocity.x -= PLAYER_VEL;
             break;
         default:
         }
@@ -57,34 +87,14 @@ class Game
 }
 
 //==============================================================================
-// Class Point2D - Instantiates a Point in 2D Space
+// Class Value2D - Instantiates a Value in 2D Space
 //==============================================================================
-class Point2D
+class Value2D
 {
     constructor(x,y)
     {
         this.x = x;
         this.y = y;
-    }
-
-    SetX(x)
-    {
-        this.x = x;
-    }
-
-    SetY(y)
-    {
-        this.y = y;
-    }
-
-    GetX()
-    {
-        return this.x;
-    }
-
-    GetY()
-    {
-        return this.y;
     }
 }
 
@@ -111,55 +121,66 @@ class Background
 //==============================================================================
 class Entity
 {
-    constructor()
+    constructor(maxVelocity)
     {
-        this.location = new Point2D(0,0);
+        this.location = new Value2D(0,0);
+        this.velocity = new Value2D(0,0);
+        this.acceleration = new Value2D(0,0);
+        this.maxVelocity = maxVelocity;
         this.color = "Red";
-    }
-
-    SetLocation(x,y)
-    {
-        this.location.SetX(x);
-        this.location.SetY(y);
-    }
-
-    SetLocationX(x)
-    {
-        this.location.SetX(x);
-    }
-
-    SetLocationY(y)
-    {
-        this.location.SetY(y);
-    }
-
-    GetLocationX()
-    {
-        return this.location.GetX();
-    }
-
-    GetLocationY()
-    {
-        return this.location.GetY();
     }
 
     Update()
     {
+        this.UpdatePos();
+
         return;
     }
 
     Draw()
     {
         cContext.fillStyle = this.color;
-        cContext.fillRect(this.location.GetX(),this.location.GetY(),50,50);
+        cContext.fillRect(this.location.x,this.location.y,50,50);
+        this.DBG_PrintInfo();
+    }
+
+    UpdatePos()
+    {
+        this.velocity.x += this.acceleration.x;
+        this.velocity.y += this.acceleration.y;
+        
+        if(this.velocity.x > this.maxVelocity)
+        {
+            this.velocity.x = this.maxVelocity;
+        }
+        else if(this.velocity.x < -this.maxVelocity)
+        {
+            this.velocity.x = -this.maxVelocity;
+        }
+
+        if(this.velocity.y > this.maxVelocity)
+        {
+            this.velocity.y = this.maxVelocity;
+        }
+        else if(this.velocity.y < -(this.maxVelocity))
+        {
+            this.velocity.y = -(this.maxVelocity);
+        }
+
+        this.location.x += this.velocity.x;
+        this.location.y += this.velocity.y;
+
+        return;
+    }
+    
+    DBG_PrintInfo()
+    {
+        console.log(`Entity maxVel = ${this.maxVelocity}`);
+        console.log(`Entity accel = (${this.acceleration.x},${this.acceleration.y})`);
+        console.log(`Entity vel = (${this.velocity.x},${this.velocity.y})`);
+        console.log(`Entity pos = (${this.location.x},${this.location.y})`);
     }
 }
-
-//======================================================================================================
-// Constants
-//======================================================================================================
-const CANVAS_W = 600;
-const CANVAS_H = 600;
 
 //======================================================================================================
 // Element Initialization
