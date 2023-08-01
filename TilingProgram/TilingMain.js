@@ -3,11 +3,13 @@
 //======================================================================================================
 // Constants
 //======================================================================================================
-const CANVAS_W = 600;
-const CANVAS_H = 600;
+const CANVAS_W = 624;
+const CANVAS_H = 624;
 const PLAYER_VEL = 2;
-const MAP_W = 10;
-const MAP_H = 10;
+const MAP_W = 256;
+const MAP_H = 256;
+const TILE_H = 16;
+const TILE_W = 16;
 
 //======================================================================================================
 // Element Initialization
@@ -33,5 +35,5 @@ function MainLoop()
     if(isGameRunning) window.requestAnimationFrame(MainLoop);
 }
 
+console.log(game.background.map.matrix);
 MainLoop();
-//console.log(game.map.matrix);
