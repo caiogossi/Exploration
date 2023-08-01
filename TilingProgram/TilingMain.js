@@ -15,6 +15,8 @@ const TILE_W = 16;
 // Element Initialization
 //======================================================================================================
 
+window.onkeydown = (key) => { if(key.ctrlKey == true) {key.preventDefault()}};
+
 // Canvas Element Setup
 const canvasElement = document.getElementById("CanvasElement");
 const cContext = canvasElement.getContext("2d");
@@ -35,5 +37,4 @@ function MainLoop()
     if(isGameRunning) window.requestAnimationFrame(MainLoop);
 }
 
-console.log(game.background.map.matrix);
 MainLoop();

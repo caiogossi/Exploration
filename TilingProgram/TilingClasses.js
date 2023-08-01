@@ -12,16 +12,25 @@ class Game
 {
     constructor()
     {
+        this.fileSelector = document.getElementById("FileSelector");
+        
         this.background = new Background();
         this.camera = new Camera(19);
         this.selectScreen = new SelectScreen();
         this.clientMouse = new ClientMouse();
 
         this.isInSelectScreen = false;
+        this.isCtrlPressed = false;
 
         canvasElement.addEventListener("click", (event) => {this.HandleMouseClick(event);});
+        canvasElement.addEventListener("mousedown", (event) => {this.HandleMouseDown(event);});
+        canvasElement.addEventListener("mouseup", (event) => {this.HandleMouseUp(event);});
         canvasElement.addEventListener("wheel", (event) => {this.HandleMouseWheel(event);});
+
         window.addEventListener("keydown", (event) => {this.HandleKeyInput(event);});
+        window.addEventListener("keyup", (event) => {this.HandleKeyUp(event);});
+
+        this.fileSelector.addEventListener("change", (event) => {this.HandleFileUpload(event);});
     }
     
     Update()
@@ -48,7 +57,16 @@ class Game
             this.clientMouse.curIDSelected = this.clientMouse.mouseTileID;
             this.isInSelectScreen = !this.isInSelectScreen;
         }
-        else this.background.map.matrix[this.background.absMouseTileY][this.background.absMouseTileX] = this.clientMouse.curIDSelected;
+    }
+
+    HandleMouseDown(event)
+    {
+        this.clientMouse.isMouseDown = true;
+    }
+
+    HandleMouseUp(event)
+    {
+        this.clientMouse.isMouseDown = false;
     }
 
     HandleMouseWheel(event)
@@ -60,9 +78,7 @@ class Game
     }
 
     HandleKeyInput(event)
-    {  
-        console.log(event.key);
-        
+    {    
         switch(event.key)
         {
         case "w":
@@ -72,7 +88,8 @@ class Game
             if(!this.isInSelectScreen) this.camera.position.x -= 1;
             break;
         case "s":
-            if(!this.isInSelectScreen) this.camera.position.y += 1;
+            if(!this.isInSelectScreen && !this.isCtrlPressed) this.camera.position.y += 1;
+            else if(this.isCtrlPressed) this.background.map.SaveMapToFile();
             break;
         case "d":
             if(!this.isInSelectScreen) this.camera.position.x += 1;
@@ -80,8 +97,24 @@ class Game
         case "Escape":
             this.isInSelectScreen = !this.isInSelectScreen;
             break;
+        case "Control":
+            this.isCtrlPressed = true;
+            break;
         default:
         }
+    }
+
+    HandleKeyUp(event)
+    {
+        if(event.key == "Control")
+        {
+            this.isCtrlPressed = false;
+        }
+    }
+
+    HandleFileUpload(event)
+    {
+        this.background.map.LoadMapFromFile(event.target.files[0]);
     }
 }
 
@@ -96,6 +129,7 @@ class Map
         this.width = MAP_W;
         this.height = MAP_H;
         this.matrix = [];
+        this.matrixText = "";
         
         this.InitMapMatrix();
     }
@@ -112,6 +146,52 @@ class Map
             {
                 this.matrix[h].push(tileCounter);
                 tileCounter++;
+            }
+        }
+    }
+
+    GenerateText()
+    {
+        for(let h = 0; h < MAP_H; h++)
+        {
+            for(let w = 0; w < MAP_W; w++)
+            {
+                this.matrixText += this.matrix[h][w].toString();
+                this.matrixText += ",";
+            }
+        }
+    }
+    
+    SaveMapToFile()
+    {
+        this.GenerateText();
+        
+        let link = document.createElement("a");
+        let file = new Blob(this.matrixText.split(""));
+
+        link.href = URL.createObjectURL(file);
+        link.download = "map.txt";
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    LoadMapFromFile(file)
+    {
+        let fileTextPromise = file.text();
+        fileTextPromise.then((value) => {this.SaveTextToMap(value);});
+    }
+
+    SaveTextToMap(value)
+    {
+        let IDArray = value.split(",");
+
+        let textCounter = 0;
+        for(let h = 0; h < MAP_H; h++)
+        {
+            for(let w = 0; w < MAP_W; w++)
+            {
+                this.matrix[h][w] = IDArray[textCounter];
+                textCounter++;
             }
         }
     }
@@ -142,18 +222,25 @@ class Background
         this.absMouseTileX = 0;
         this.absMouseTileY = 0;
 
+        this.image = new Image();
+        this.image.src = "img/tiles.png";
+
         cContext.font = "7px serif";
     }
 
     Update()
     {
         this.ApproxMouseToAbsTile();
+        if(!game.isInSelectScreen && game.clientMouse.isMouseDown)
+        {
+            this.map.matrix[this.absMouseTileY][this.absMouseTileX] = game.clientMouse.curIDSelected;
+        } 
     }
     
     Draw()
     {
         let noTilesH = CANVAS_H/TILE_H - 1;
-        let noTilesW = CANVAS_W/TILE_W - 1;
+        let noTilesW = CANVAS_W/TILE_W;
 
         cContext.fillStyle = "Black";
         
@@ -167,10 +254,11 @@ class Background
                 
                 // Get Data from Map
                 let curBlockID = this.map.matrix[cameraYPos-19+h][cameraXPos-19+w];
-                let curBlockStr = curBlockID.toString();
 
                 // Draw to Screen
-                cContext.fillText(curBlockStr,16*w,16*h+16);
+                let tileRow = Math.floor(curBlockID / (noTilesW));
+                let tileCol = Math.floor(curBlockID % (noTilesW));
+                cContext.drawImage(this.image,TILE_W*tileCol,TILE_H*tileRow,TILE_W,TILE_H,TILE_W*w,TILE_H*h,TILE_W,TILE_H);
             }
         }
 
@@ -181,14 +269,15 @@ class Background
     {
         this.absMouseTileX = game.clientMouse.mouseTileX + game.camera.position.x - 19;
         this.absMouseTileY = game.clientMouse.mouseTileY + game.camera.position.y - 19;
-
-        //console.log(`Selecting absolute tile (${this.absMouseTileX},${this.absMouseTileY})`);
     }
 
     DrawSelection()
     {
-        cContext.fillStyle = "Red";
-        cContext.fillRect(16*game.clientMouse.mouseTileX,16*game.clientMouse.mouseTileY,TILE_W,TILE_H);
+        let noTilesW = CANVAS_W/TILE_W;
+        let tileRow = Math.floor(game.clientMouse.curIDSelected / noTilesW);
+        let tileCol = Math.floor(game.clientMouse.curIDSelected % noTilesW);
+        
+        cContext.drawImage(this.image,TILE_W*tileCol,TILE_H*tileRow,TILE_W,TILE_H,TILE_W*game.clientMouse.mouseTileX,TILE_H*game.clientMouse.mouseTileY,TILE_W,TILE_H);
     }
 }
 
@@ -233,6 +322,7 @@ class ClientMouse
         window.addEventListener("mousemove", (event) => {this.HandleMouseMove(event);});
 
         this.position = new Value2D(0,0);
+        this.isMouseDown = false;
         this.curIDSelected = 0;
 
         this.mouseTileX = 0;
@@ -256,9 +346,6 @@ class ClientMouse
     
         if(this.curIDSelected < 0) this.curIDSelected = 0;
         else if(this.curIDSelected > 1000) this.curIDSelected = 1000;
-    
-        console.log(`curIDSelected = ${this.curIDSelected}`);
-        console.log(`curTileID = ${this.mouseTileID}`);
     }
     
     ApproxMouseToTile()
@@ -269,13 +356,15 @@ class ClientMouse
 
     CalculateTileID()
     {
-        let noTilesW = CANVAS_W/TILE_W - 1;
+        let noTilesW = CANVAS_W/TILE_W;
         this.mouseTileID = this.mouseTileY*noTilesW + this.mouseTileX;
     }
 
     DBGPrintInfo()
     {
         console.log(`MousePos = (${this.position.x},${this.position.y})`);
+        console.log(`curIDSelected = ${this.curIDSelected}`);
+        console.log(`curTileID = ${this.mouseTileID}`);
     }
 }
 
@@ -287,7 +376,8 @@ class SelectScreen
 {
     constructor()
     {
-
+        this.image = new Image();
+        this.image.src = "img/tiles.png";
     }
 
     Update()
@@ -297,29 +387,35 @@ class SelectScreen
     
     Draw()
     {
-        this.DrawSelection();
-        
         cContext.fillStyle = "Black";
         
         let noTilesH = CANVAS_H/TILE_H - 1;
-        let noTilesW = CANVAS_W/TILE_W - 1;
+        let noTilesW = CANVAS_W/TILE_W;
         
-        let counter = 0;
+        let curBlockID = 0;
         
         for(let h = 0; h < noTilesH; h++)
         {
             for(let w = 0; w < noTilesW; w++)
             {
                 // Draw to Screen
-                cContext.fillText(counter,16*w,16*h+16);
-                counter++;
+                let tileRow = Math.floor(curBlockID / (noTilesW));
+                let tileCol = Math.floor(curBlockID % (noTilesW));
+                cContext.drawImage(this.image,TILE_W*tileCol,TILE_H*tileRow,TILE_W,TILE_H,TILE_W*w,TILE_H*h,TILE_W,TILE_H);
+                
+                curBlockID++;
             }
         }
+
+        this.DrawSelection();
     }
 
     DrawSelection()
     {
-        cContext.fillStyle = "Red";
-        cContext.fillRect(16*game.clientMouse.mouseTileX,16*game.clientMouse.mouseTileY,TILE_W,TILE_H);
+        let noTilesW = CANVAS_W/TILE_W;
+        let tileRow = Math.floor(game.clientMouse.curIDSelected / noTilesW);
+        let tileCol = Math.floor(game.clientMouse.curIDSelected % noTilesW);
+        
+        cContext.drawImage(this.image,TILE_W*tileCol,TILE_H*tileRow,TILE_W,TILE_H,TILE_W*game.clientMouse.mouseTileX,TILE_H*game.clientMouse.mouseTileY,TILE_W,TILE_H);
     }
 }
