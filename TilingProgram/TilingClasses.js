@@ -231,7 +231,7 @@ class Background
     Update()
     {
         this.ApproxMouseToAbsTile();
-        if(!game.isInSelectScreen && game.clientMouse.isMouseDown)
+        if(!game.isInSelectScreen && game.clientMouse.isMouseDown && this.absMouseTileY >= 0 && this.absMouseTileX >= 0)
         {
             this.map.matrix[this.absMouseTileY][this.absMouseTileX] = game.clientMouse.curIDSelected;
         } 
